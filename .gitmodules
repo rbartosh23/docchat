@@ -1,0 +1,9 @@
+[submodule "test_projects/markdown-compiler"]
+	path = test_projects/markdown-compiler
+	url = https://github.com/rbartosh23/markdown-compiler.git
+[submodule "test_projects/ebay-scraper"]
+	path = test_projects/ebay-scraper
+	url = https://github.com/rbartosh23/ebay-scraper.git
+[submodule "lab-hompage"]
+	path = test_projects/lab-homepage
+	url = https://github.com/rbartosh23/lab-hompage.git
