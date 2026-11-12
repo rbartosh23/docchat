@@ -61,7 +61,25 @@ TOOLS = [
 
 
 def llm(messages, temperature=1, tools=None):
-    """Send the conversation to the model and return its whole reply message."""
+    """Send the conversation to the model and return its whole reply message.
+
+    >>> from unittest.mock import MagicMock, patch
+    >>> fake_client = MagicMock()
+    >>> fake_client.chat.completions.create.return_value.choices = [
+    ...     MagicMock(message='Hello!')]
+    >>> with patch('chat.Groq', return_value=fake_client):
+    ...     llm([{'role': 'user', 'content': 'Hi'}], temperature=0)
+    'Hello!'
+    >>> sent = fake_client.chat.completions.create.call_args.kwargs
+    >>> sent['messages']
+    [{'role': 'user', 'content': 'Hi'}]
+    >>> 'tools' in sent
+    False
+    >>> with patch('chat.Groq', return_value=fake_client):
+    ...     _ = llm([], tools=['a tool'])
+    >>> fake_client.chat.completions.create.call_args.kwargs['tools']
+    ['a tool']
+    """
     client = Groq(api_key=os.environ.get('GROQ_API_KEY'))
     options = {}
     if tools:
@@ -110,6 +128,7 @@ class Chat:
     """
 
     def __init__(self, system="You're a helpful assistant.", debug=False):
+        """Start a conversation with a system message and an optional debug mode."""
         self.messages = [{'role': 'system', 'content': system}]
         self.debug = debug
 
