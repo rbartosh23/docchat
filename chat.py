@@ -1,4 +1,5 @@
 """A command-line chat program that answers questions about files using tools."""
+import argparse
 import json
 import os
 from dotenv import load_dotenv
@@ -10,6 +11,9 @@ from tools.grep import grep
 from tools.ls import ls
 
 load_dotenv()
+
+SYSTEM = ("You're a helpful assistant that answers questions about the "
+          "files in the current folder. Use your tools to look at them.")
 
 FUNCTIONS = {'calculate': calculate, 'ls': ls, 'cat': cat, 'grep': grep}
 
@@ -76,7 +80,8 @@ class Chat:
     r"""A conversation with a model that can run tools two ways.
 
     Tools run automatically when the model asks for them (send_message), or
-    manually when the user types a /command (run_manual_command).
+    manually when the user types a /command (run_manual_command). With
+    debug=True, every automatic tool call is printed as it runs.
 
     >>> chat = Chat()
     >>> chat.run_tool('calculate', {'expression': '2 + 3'})
@@ -95,13 +100,23 @@ class Chat:
     'Error: unsafe path'
     >>> chat.run_manual_command('/ls a b c')
     'Error: wrong number of arguments'
+
+    Debug mode prints the tool name and its arguments, then still runs it:
+
+    >>> chat = Chat(debug=True)
+    >>> chat.run_tool('calculate', {'expression': '1 + 1'})
+    [tool] calculate {'expression': '1 + 1'}
+    '2'
     """
 
-    def __init__(self, system="You're a helpful assistant."):
+    def __init__(self, system="You're a helpful assistant.", debug=False):
         self.messages = [{'role': 'system', 'content': system}]
+        self.debug = debug
 
     def run_tool(self, name, arguments):
         """Run the named tool using a dictionary of arguments."""
+        if self.debug:
+            print(f'[tool] {name} {arguments}')
         if name not in FUNCTIONS:
             return 'Error: unknown tool'
         try:
@@ -171,7 +186,7 @@ class Chat:
                 })
 
 
-def repl(temperature=0.8):
+def repl(temperature=0.8, debug=False):
     """Chat until the user exits.
 
     Two inputs, then end-of-input (EOFError):
@@ -201,9 +216,7 @@ def repl(temperature=0.8):
     3
     <BLANKLINE>
     """
-    chat = Chat(system="You're a helpful assistant that answers questions "
-                       "about the files in the current folder. Use your "
-                       "tools to look at them.")
+    chat = Chat(system=SYSTEM, debug=debug)
     try:
         while True:
             user_input = input('chat> ')
@@ -220,5 +233,39 @@ def repl(temperature=0.8):
         print()
 
 
+def main(argv=None):
+    """Run the command line: chat, chat "message", or chat --debug.
+
+    With a message, send just that message and print the reply. Without one,
+    start the interactive chat.
+
+    >>> from unittest.mock import patch
+    >>> with patch.object(Chat, 'send_message', return_value='Hello!'):
+    ...     main(['Hi'])
+    Hello!
+    >>> with patch.object(Chat, 'send_message', side_effect=OSError('down')):
+    ...     main(['Hi'])
+    Error: down
+    >>> with patch('builtins.input', side_effect=[EOFError]):
+    ...     main(['--debug'])
+    <BLANKLINE>
+    """
+    parser = argparse.ArgumentParser(
+        description='Chat about the files in the current folder.')
+    parser.add_argument('message', nargs='?',
+                        help='send this one message, print the reply, and exit')
+    parser.add_argument('--debug', action='store_true',
+                        help='print each tool call (name and arguments)')
+    args = parser.parse_args(argv)
+    if args.message is None:
+        repl(debug=args.debug)
+        return
+    chat = Chat(system=SYSTEM, debug=args.debug)
+    try:
+        print(chat.send_message(args.message))
+    except Exception as error:
+        print('Error:', error)
+
+
 if __name__ == '__main__':
-    repl()
+    main()

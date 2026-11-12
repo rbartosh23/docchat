@@ -1,5 +1,6 @@
 """The calculate tool: safely evaluates simple arithmetic expressions."""
 
+
 def calculate(expression):
     """Evaluate an arithmetic expression and return the answer as a string.
 
